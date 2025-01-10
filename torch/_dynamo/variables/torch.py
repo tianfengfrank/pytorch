@@ -1189,3 +1189,36 @@ Either create the tensor outside the compiled region, or do not set the tensor t
                 (torch._ops.OpOverload, torch._ops.OpOverloadPacket),
             )
         ) and can_dispatch_torch_function(tx, args, kwargs)
+
+
+class TorchDispatchKeySetVariable(BaseTorchVariable):
+    """represents torch.DispatchKeySet"""
+
+    @classmethod
+    def create_with_source(cls, value, source):
+        install_guard(source.make_guard(GuardBuilder.DISPATCH_KEY_SET_MATCH))
+        return cls(value, source=source)
+
+    def is_constant_fold_method(self, name):
+        return name in ["has"]
+
+    def call_method(
+        self,
+        tx,
+        name,
+        args: "List[VariableTracker]",
+        kwargs: "Dict[str, VariableTracker]",
+    ) -> "VariableTracker":
+        if self.is_constant_fold_method(name) and check_unspec_or_constant_args(
+            args, kwargs
+        ):
+            method = getattr(self.value, name)
+            return variables.ConstantVariable.create(
+                method(
+                    *[x.as_python_constant() for x in args],
+                    **{k: v.as_python_constant() for k, v in kwargs.items()},
+                ),
+            )
+        elif name == "highestPriorityTypeId":
+            return variables.EnumVariable(self.value.highestPriorityTypeId())
+        return super().call_method(tx, name, args, kwargs)
