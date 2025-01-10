@@ -52,6 +52,25 @@ class PythonDispatcherTests(torch._dynamo.test_case.TestCase):
         # Re-compile since the dispatch key set is different.
         self.assertEqual(counter.frame_count, 2)
 
+    def test_functorch_interpreter(self):
+        def square_and_add(x, y):
+            interpreter = (
+                torch._functorch.pyfunctorch.retrieve_current_functorch_interpreter()
+            )
+            level = interpreter.level()
+            if interpreter.key() == torch._C._functorch.TransformType.Vmap:
+                return (x**2 + y) * level
+            else:
+                return x**2 * level
+
+        @torch.compile(backend="eager", fullgraph=True)
+        def fn(x, y):
+            return torch.vmap(square_and_add)(x, y)
+
+        x = torch.tensor([1, 2, 3, 4])
+        y = torch.tensor([10, 20, 30, 40])
+        self.assertEqual(fn(x, y), torch.tensor([11, 24, 39, 56]))
+
 
 if __name__ == "__main__":
     from torch._dynamo.test_case import run_tests
