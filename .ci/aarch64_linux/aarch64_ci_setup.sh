@@ -6,9 +6,14 @@ set -eux -o pipefail
 
 NUMPY_VERSION=2.0.2
 PYGIT2_VERSION=1.15.1
-if [[ "$DESIRED_PYTHON"  == "3.13" ]]; then
+if [[ "$DESIRED_PYTHON"  == "3.13" || "$DESIRED_PYTHON" == "3.13t" ]]; then
     NUMPY_VERSION=2.1.2
     PYGIT2_VERSION=1.16.0
+fi
+
+if [[ "$DESIRED_PYTHON" == "3.13t" ]]; then
+    #PYGIT2 has not been released to 3.13t and needs libgit2 to be built locally
+    sudo yum install libgit2-devel
 fi
 
 SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
